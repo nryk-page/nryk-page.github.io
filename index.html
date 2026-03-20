@@ -119,6 +119,10 @@ body {
     color: black;
     font-weight: bold;
 }
+.holiday {
+   color: #ff4040;
+   font-weight: bold;
+}
 </style>
 </head>
 
@@ -207,10 +211,16 @@ function buildCalendar() {
                 td.textContent = "";
             } else {
                 td.textContent = dateNum;
+                const monthStr = String(month + 1).padStart(2, '0');
+                const dayStr = String(dateNum).padStart(2, '0');
+                const dateKey = `${year}-${monthStr}-${dayStr}`;
 
-                if (day === 0) td.classList.add("sun");
-                if (day === 6) td.classList.add("sat");
-                if (dateNum === today) td.classList.add("today");
+            if (holidays[dateKey]) {
+                td.classList.add("holiday");
+            }               
+            if (day === 0) td.classList.add("sun");
+            if (day === 6) td.classList.add("sat");
+            if (dateNum === today) td.classList.add("today");
 
                 dateNum++;
             }
@@ -223,7 +233,19 @@ function buildCalendar() {
         if (dateNum > lastDate) break;
     }
 }
+    
+let holidays = {};
 
+async function loadHolidays(year) {
+    try {
+        const res = await fetch(`https://holidays-jp.github.io/api/v1/${year}/date.json`);
+        holidays = await res.json();
+    } catch (e) {
+        console.log("祝日取得失敗");
+        holidays = {};
+    }
+}
+    
 async function loadWeather() {
     try {
         const res = await fetch(
@@ -260,9 +282,14 @@ function getWeatherIcon(code) {
     return "❓";
 }
 
-updateClock();
-buildCalendar();
-loadWeather();
+const now = new Date();
+const currentYear = now.getFullYear();
+
+loadHolidays(currentYear).then(() => {
+    updateClock();
+    buildCalendar();
+    loadWeather();
+});
 
 setInterval(updateClock, 1000);
 setInterval(loadWeather, 600000);
