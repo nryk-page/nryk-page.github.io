@@ -42,9 +42,27 @@ body {
 
 /* 天気 */
 #weather {
-    font-size　22px !important;
-    white-space: nowrap;
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+    gap: 10px;
     margin-bottom: 10px;
+    white-space: nowrap;
+}
+
+#weather-icon {
+    font-size: 42px;
+    line-height: 1;
+}
+
+#weather-temp {
+    font-size: 34px;
+    line-height: 1;
+}
+
+#weather-rain {
+    font-size: 34px;
+    line-height: 1;
 }
 
 /* 時計 */
@@ -97,7 +115,11 @@ body {
 <div class="container">
 
     <div class="left">
-        <div id="weather">取得中...</div>
+        <div id="weather">
+            <span id="weather-icon">☀️</span>
+            <span id="weather-temp">--℃</span>
+            <span id="weather-rain">☔--%</span>
+        </div>
         <div id="time"></div>
         <div id="date"></div>
     </div>
