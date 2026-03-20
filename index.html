@@ -11,16 +11,8 @@ body {
     background: black;
     color: white;
     font-family: Arial, sans-serif;
-}
-
-.container {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 6px;
-    height: 100vh;
-    padding: 4px 6px;
-    box-sizing: border-box;
+    -webkit-text-size-adjust: 100%;
+    text-size-adjust: 100%;
 }
 
 .left {
@@ -28,8 +20,9 @@ body {
     display: flex;
     flex-direction: column;
     justify-content: center;
-    align-items: center;
-    text-align: left;
+    align-items: flex-end;
+    text-align: right;
+    overflow: visible;
 }
 
 .right {
@@ -40,7 +33,6 @@ body {
     align-items: center;
 }
 
-/* 天気 */
 #weather {
     display: flex;
     justify-content: flex-end;
@@ -48,7 +40,9 @@ body {
     gap: 10px;
     margin-bottom: 10px;
     white-space: nowrap;
+    overflow: visible;
 }
+
 #weather-icon,
 #weather-temp,
 #weather-rain {
