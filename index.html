@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Clock Weather</title>
+<title>Clock Weather Calendar Ticker</title>
 
 <style>
 body {
@@ -11,15 +11,51 @@ body {
     background: black;
     color: white;
     font-family: Arial, sans-serif;
+    overflow: hidden;
 }
 
+/* 上部2行ティッカー */
+#top-ticker {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    background: #111;
+    border-bottom: 1px solid #333;
+    box-sizing: border-box;
+    padding: 6px 10px 5px 10px;
+    z-index: 9999;
+    overflow: hidden;
+}
+
+#market-line,
+#news-line {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    line-height: 1.2;
+}
+
+#market-line {
+    font-size: 18px;
+    font-weight: bold;
+    color: #ffd966;
+}
+
+#news-line {
+    font-size: 16px;
+    color: #dddddd;
+    margin-top: 2px;
+}
+
+/* メイン配置 */
 .container {
     display: flex;
     align-items: center;
     justify-content: center;
     gap: 6px;
     height: 100vh;
-    padding: 4px 6px;
+    padding: 42px 6px 4px 6px; /* 上部帯ぶん下げる */
     box-sizing: border-box;
 }
 
@@ -45,7 +81,7 @@ body {
     width: 100%;
     display: flex;
     justify-content: center;
-    margin-bottom 5px;
+    margin-bottom: 5px;
     overflow: visible;
 }
 
@@ -120,6 +156,7 @@ body {
     color: black;
     font-weight: bold;
 }
+
 .holiday {
    color: #ff4040;
    font-weight: bold;
@@ -128,6 +165,11 @@ body {
 </head>
 
 <body>
+
+<div id="top-ticker">
+    <div id="market-line">日経平均 -- / USDJPY --</div>
+    <div id="news-line">最新ニュースを取得中...</div>
+</div>
 
 <div class="container">
 
@@ -176,7 +218,7 @@ function updateClock() {
 
     const date =
         now.getFullYear() + "年" +
-        (now.getMonth()+1) + "月" +
+        (now.getMonth() + 1) + "月" +
         now.getDate() + "日 (" + week[now.getDay()] + ")";
 
     document.getElementById("time").textContent = time;
@@ -212,16 +254,15 @@ function buildCalendar() {
                 td.textContent = "";
             } else {
                 td.textContent = dateNum;
-                const monthStr = String(month + 1).padStart(2, '0');
-                const dayStr = String(dateNum).padStart(2, '0');
+
+                const monthStr = String(month + 1).padStart(2, "0");
+                const dayStr = String(dateNum).padStart(2, "0");
                 const dateKey = `${year}-${monthStr}-${dayStr}`;
 
-            if (holidays[dateKey]) {
-                td.classList.add("holiday");
-            }               
-            if (day === 0) td.classList.add("sun");
-            if (day === 6) td.classList.add("sat");
-            if (dateNum === today) td.classList.add("today");
+                if (holidays[dateKey]) td.classList.add("holiday");
+                if (day === 0) td.classList.add("sun");
+                if (day === 6) td.classList.add("sat");
+                if (dateNum === today) td.classList.add("today");
 
                 dateNum++;
             }
@@ -234,7 +275,7 @@ function buildCalendar() {
         if (dateNum > lastDate) break;
     }
 }
-    
+
 let holidays = {};
 
 async function loadHolidays(year) {
@@ -246,7 +287,7 @@ async function loadHolidays(year) {
         holidays = {};
     }
 }
-    
+
 async function loadWeather() {
     try {
         const res = await fetch(
@@ -283,6 +324,72 @@ function getWeatherIcon(code) {
     return "❓";
 }
 
+/* ---------------------------
+   相場・ニュース表示
+--------------------------- */
+
+// 公開CORSプロキシ経由でテキスト取得
+async function fetchTextViaProxy(url) {
+    const proxyUrl = "https://api.allorigins.win/raw?url=" + encodeURIComponent(url);
+    const res = await fetch(proxyUrl);
+    if (!res.ok) throw new Error("fetch failed");
+    return await res.text();
+}
+
+// HTML文字列から数値っぽいものを拾う簡易関数
+function extractLastNumber(html) {
+    const cleaned = html.replace(/\s+/g, " ");
+    const match = cleaned.match(/Last.*?([0-9][0-9,]*\.?[0-9]*)/i);
+    return match ? match[1] : null;
+}
+
+async function loadMarkets() {
+    try {
+        // 日経平均
+        const nikkeiHtml = await fetchTextViaProxy("https://stooq.com/q/?s=%5Enkx");
+        const nikkei = extractLastNumber(nikkeiHtml) || "--";
+
+        // USDJPY
+        const usdJpyHtml = await fetchTextViaProxy("https://stooq.com/q/?s=usdjpy");
+        const usdJpy = extractLastNumber(usdJpyHtml) || "--";
+
+        document.getElementById("market-line").textContent =
+            `日経平均 ${nikkei} / USDJPY ${usdJpy}`;
+    } catch (e) {
+        document.getElementById("market-line").textContent =
+            "日経平均 -- / USDJPY --";
+    }
+}
+
+async function loadNews() {
+    try {
+        // NHK主要ニュース RSS
+        const rssText = await fetchTextViaProxy("https://www.nhk.or.jp/rss/news/cat0.xml");
+        const parser = new DOMParser();
+        const xml = parser.parseFromString(rssText, "application/xml");
+
+        const items = xml.querySelectorAll("item title");
+        const headlines = [];
+
+        for (let i = 0; i < items.length && headlines.length < 2; i++) {
+            const t = items[i].textContent.trim();
+            if (t) headlines.push(t);
+        }
+
+        document.getElementById("news-line").textContent =
+            headlines.length >= 2
+                ? `${headlines[0]} ／ ${headlines[1]}`
+                : (headlines[0] || "最新ニュース取得失敗");
+    } catch (e) {
+        document.getElementById("news-line").textContent =
+            "最新ニュースを取得できませんでした";
+    }
+}
+
+async function loadTopInfo() {
+    await Promise.all([loadMarkets(), loadNews()]);
+}
+
 const now = new Date();
 const currentYear = now.getFullYear();
 
@@ -290,21 +397,23 @@ loadHolidays(currentYear).then(() => {
     updateClock();
     buildCalendar();
     loadWeather();
+    loadTopInfo();
 });
-// 擬似クリック（かなり効く）
+
+// 擬似クリック（Silk対策）
 setInterval(() => {
-  document.body.dispatchEvent(new Event("touchstart"));
+    document.body.dispatchEvent(new Event("touchstart"));
 }, 45000);
-    
+
 setInterval(updateClock, 1000);
 setInterval(loadWeather, 600000);
-    
-const FULL_RELOAD_MS = 5 * 60 * 1000;
+setInterval(loadTopInfo, 300000);
 
+// 定期フルリロード
+const FULL_RELOAD_MS = 5 * 60 * 1000;
 setTimeout(() => {
-  location.reload();
+    location.reload();
 }, FULL_RELOAD_MS);
-    
 </script>
 
 </body>
