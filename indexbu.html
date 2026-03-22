@@ -1,0 +1,311 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Clock Weather</title>
+
+<style>
+body {
+    margin: 0;
+    background: black;
+    color: white;
+    font-family: Arial, sans-serif;
+}
+
+.container {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    height: 100vh;
+    padding: 4px 6px;
+    box-sizing: border-box;
+}
+
+.left {
+    width: 50%;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    text-align: right;
+}
+
+.right {
+    width: 50%;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+}
+
+/* 天気 */
+#weather-wrap {
+    width: 100%;
+    display: flex;
+    justify-content: center;
+    margin-bottom 5px;
+    overflow: visible;
+}
+
+#weather {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    white-space: nowrap;
+    transform: scale(1.35);
+    transform-origin: right center;
+}
+
+#weather-icon,
+#weather-temp,
+#weather-rain {
+    line-height: 1;
+}
+
+#weather-icon {
+    font-size: 30px;
+}
+
+#weather-temp {
+    font-size: 24px;
+    font-weight: bold;
+}
+
+#weather-rain {
+    font-size: 24px;
+}
+
+/* 時計 */
+#time {
+    margin-top: 20pt;
+    font-size: 95px;
+    font-weight: bold;
+    line-height: 1;
+    letter-spacing: -2px;
+}
+
+#date {
+    font-size: 35px;
+    margin-top: 10px;
+}
+
+/* カレンダー */
+#calendar-title {
+    font-size: 28px;
+    margin-bottom: 6px;
+}
+
+#calendar {
+    width: 100%;
+    max-width: 460px;
+    border-collapse: collapse;
+    table-layout: fixed;
+}
+
+#calendar th,
+#calendar td {
+    border: 1px solid #444;
+    text-align: center;
+    padding: 6px 2px;
+    font-size: 25px;
+}
+
+.sun { color: #ff8080; }
+.sat { color: #7fb3ff; }
+
+.today {
+    background: white;
+    color: black;
+    font-weight: bold;
+}
+.holiday {
+   color: #ff4040;
+   font-weight: bold;
+}
+</style>
+</head>
+
+<body>
+
+<div class="container">
+
+    <div class="left">
+        <div id="weather-wrap">
+            <div id="weather">
+                <span id="weather-icon">☀️</span>
+                <span id="weather-temp">--℃</span>
+                <span id="weather-rain">☔--%</span>
+            </div>
+        </div>
+        <div id="time"></div>
+        <div id="date"></div>
+    </div>
+
+    <div class="right">
+        <div id="calendar-title"></div>
+        <table id="calendar">
+            <thead>
+                <tr>
+                    <th class="sun">日</th>
+                    <th>月</th>
+                    <th>火</th>
+                    <th>水</th>
+                    <th>木</th>
+                    <th>金</th>
+                    <th class="sat">土</th>
+                </tr>
+            </thead>
+            <tbody id="calendar-body"></tbody>
+        </table>
+    </div>
+
+</div>
+
+<script>
+function updateClock() {
+    const now = new Date();
+
+    const time =
+        String(now.getHours()).padStart(2, '0') + ":" +
+        String(now.getMinutes()).padStart(2, '0') + ":" +
+        String(now.getSeconds()).padStart(2, '0');
+
+    const week = ["日","月","火","水","木","金","土"];
+
+    const date =
+        now.getFullYear() + "年" +
+        (now.getMonth()+1) + "月" +
+        now.getDate() + "日 (" + week[now.getDay()] + ")";
+
+    document.getElementById("time").textContent = time;
+    document.getElementById("date").textContent = date;
+}
+
+function buildCalendar() {
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = now.getMonth();
+    const today = now.getDate();
+
+    document.getElementById("calendar-title").textContent =
+        year + "年 " + (month + 1) + "月";
+
+    const firstDay = new Date(year, month, 1).getDay();
+    const lastDate = new Date(year, month + 1, 0).getDate();
+
+    const tbody = document.getElementById("calendar-body");
+    tbody.innerHTML = "";
+
+    let dateNum = 1;
+
+    for (let week = 0; week < 6; week++) {
+        const tr = document.createElement("tr");
+
+        for (let day = 0; day < 7; day++) {
+            const td = document.createElement("td");
+
+            if (week === 0 && day < firstDay) {
+                td.textContent = "";
+            } else if (dateNum > lastDate) {
+                td.textContent = "";
+            } else {
+                td.textContent = dateNum;
+                const monthStr = String(month + 1).padStart(2, '0');
+                const dayStr = String(dateNum).padStart(2, '0');
+                const dateKey = `${year}-${monthStr}-${dayStr}`;
+
+            if (holidays[dateKey]) {
+                td.classList.add("holiday");
+            }               
+            if (day === 0) td.classList.add("sun");
+            if (day === 6) td.classList.add("sat");
+            if (dateNum === today) td.classList.add("today");
+
+                dateNum++;
+            }
+
+            tr.appendChild(td);
+        }
+
+        tbody.appendChild(tr);
+
+        if (dateNum > lastDate) break;
+    }
+}
+    
+let holidays = {};
+
+async function loadHolidays(year) {
+    try {
+        const res = await fetch(`https://holidays-jp.github.io/api/v1/${year}/date.json`);
+        holidays = await res.json();
+    } catch (e) {
+        console.log("祝日取得失敗");
+        holidays = {};
+    }
+}
+    
+async function loadWeather() {
+    try {
+        const res = await fetch(
+            "https://api.open-meteo.com/v1/forecast?latitude=35.68&longitude=139.76&current_weather=true&hourly=precipitation_probability"
+        );
+        const data = await res.json();
+
+        const temp = Math.round(data.current_weather.temperature);
+        const code = data.current_weather.weathercode;
+
+        const nowHour = new Date().getHours();
+        const rain = data.hourly.precipitation_probability[nowHour];
+
+        const icon = getWeatherIcon(code);
+
+        document.getElementById("weather-icon").textContent = icon;
+        document.getElementById("weather-temp").textContent = `${temp}℃`;
+        document.getElementById("weather-rain").textContent = `☔${rain}%`;
+
+    } catch (e) {
+        document.getElementById("weather-icon").textContent = "❓";
+        document.getElementById("weather-temp").textContent = "--℃";
+        document.getElementById("weather-rain").textContent = "☔--%";
+    }
+}
+
+function getWeatherIcon(code) {
+    if (code === 0) return "☀️";
+    if (code <= 3) return "⛅";
+    if (code <= 48) return "☁️";
+    if (code <= 67) return "🌧";
+    if (code <= 77) return "🌨";
+    if (code <= 99) return "⛈";
+    return "❓";
+}
+
+const now = new Date();
+const currentYear = now.getFullYear();
+
+loadHolidays(currentYear).then(() => {
+    updateClock();
+    buildCalendar();
+    loadWeather();
+});
+// 擬似クリック（かなり効く）
+setInterval(() => {
+  document.body.dispatchEvent(new Event("touchstart"));
+}, 45000);
+    
+setInterval(updateClock, 1000);
+setInterval(loadWeather, 600000);
+    
+const FULL_RELOAD_MS = 5 * 60 * 1000;
+
+setTimeout(() => {
+  location.reload();
+}, FULL_RELOAD_MS);
+    
+</script>
+
+</body>
+</html>
