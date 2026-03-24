@@ -47,7 +47,31 @@ body {
     color: #dddddd;
     margin-top: 2px;
 }
+    
+#news-line {
+    position: relative;
+    overflow: hidden;
+    height: 20px;
+}
 
+/* スクロール本体 */
+#news-scroll {
+    position: absolute;
+    white-space: nowrap;
+    will-change: transform;
+    animation: scroll-left 30s linear infinite;
+}
+
+/* 横スクロール */
+@keyframes scroll-left {
+    0% {
+        transform: translateX(100%);
+    }
+    100% {
+        transform: translateX(-100%);
+    }
+}
+    
 /* メイン配置 */
 .container {
     display: flex;
@@ -168,7 +192,9 @@ body {
 
 <div id="top-ticker">
     <div id="market-line">日経平均 -- / USDJPY --</div>
-    <div id="news-line">最新ニュースを取得中...</div>
+    <div id="news-line">
+        <div id="news-scroll">読み込み中...</div>
+    </div>
 </div>
 
 <div class="container">
@@ -376,13 +402,23 @@ async function loadNews() {
             if (t) headlines.push(t);
         }
 
-        document.getElementById("news-line").textContent =
-            headlines.length >= 2
-                ? `${headlines[0]} ／ ${headlines[1]}`
-                : (headlines[0] || "最新ニュース取得失敗");
+        const text = headlines.length >= 2
+            ? `${headlines[0]}　／　${headlines[1]}　　◆　　`
+            : ((headlines[0] || "最新ニュース取得失敗") + "　　◆　　");
+
+        const loopText = text + text;
+
+        const el = document.getElementById("news-scroll");
+        el.textContent = loopText;
+
+        // 文字数に応じて速度を少し調整
+        const duration = Math.max(20, loopText.length * 0.4);
+        el.style.animationDuration = duration + "s";
+
     } catch (e) {
-        document.getElementById("news-line").textContent =
-            "最新ニュースを取得できませんでした";
+        const el = document.getElementById("news-scroll");
+        el.textContent = "最新ニュースを取得できませんでした　　◆　　最新ニュースを取得できませんでした　　◆　　";
+        el.style.animationDuration = "25s";
     }
 }
 
