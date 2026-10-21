@@ -19,14 +19,20 @@ body { margin:0; background:black; color:white; font-family:Arial,sans-serif; ov
 #weather { grid-column:2; grid-row:2; display:flex; justify-content:center; align-items:center; gap:10px; font-size:clamp(26px,4vw,46px); white-space:nowrap; }
 #weather-temp { font-weight:bold; }
 .calendars { flex:1; min-height:0; display:flex; justify-content:center; align-items:flex-start; gap:clamp(32px,6vw,100px); padding-top:2px; }
-.month { flex:0 1 42%; max-width:560px; min-width:0; height:94%; display:flex; flex-direction:column; }
+.month { flex:0 1 42%; max-width:560px; min-width:0; height:auto; display:flex; flex-direction:column; }
 .calendar-title { text-align:center; font-size:clamp(22px,3.2vw,36px); line-height:1.15; margin:0 0 6px; }
-.calendar { flex:1; min-height:0; width:100%; border-collapse:collapse; table-layout:fixed; }
+.calendar { flex:none; min-height:0; width:100%; border-collapse:collapse; table-layout:fixed; }
 .calendar th,.calendar td { border:1px solid #444; text-align:center; padding:0; line-height:1; }
 .calendar th { font-size:clamp(18px,2.6vw,28px); font-weight:normal; }
 .calendar td { font-size:clamp(26px,3.8vw,44px); font-weight:600; }
-.calendar thead { height:10%; }
-.calendar tbody tr { height:15%; }
+.calendar th { height:26px; }
+.calendar td { height:clamp(38px,8vh,52px); }
+.day-number { display:inline-block; padding:1px 2px; border-radius:3px; }
+.calendar td.shared-day { font-size:clamp(18px,2.5vw,30px); white-space:nowrap; }
+.day-separator { font-size:0.65em; color:#aaa; }
+#top-ticker { position:relative; padding-right:76px; }
+#fullscreen-button { position:absolute; right:8px; top:2px; height:22px; padding:0 6px; border:1px solid #555; border-radius:3px; background:#222; color:#ccc; font-size:12px; }
+:fullscreen #fullscreen-button { display:none; }
 .sun { color:#ff8080; } .sat { color:#7fb3ff; }
 .holiday { color:#ff4040; font-weight:bold; }
 .calendar .today { background:white; color:black; font-weight:bold; }
@@ -48,7 +54,8 @@ body { margin:0; background:black; color:white; font-family:Arial,sans-serif; ov
     .calendar-title { font-size:22px; margin-bottom:4px; }
     .calendar th { font-size:16px; }
     .calendar td { font-size:24px; }
-    .month { height:100%; }
+    .calendar td { height:30px; }
+    .calendar td.shared-day { font-size:18px; }
 }
 </style>
 </head>
@@ -56,6 +63,7 @@ body { margin:0; background:black; color:white; font-family:Arial,sans-serif; ov
 <body>
     
 <div id="top-ticker">
+    <button id="fullscreen-button" type="button">全画面</button>
     <div id="news-line">
         <div id="news-scroll">読み込み中...</div>
     </div>
@@ -101,39 +109,35 @@ function buildCalendar(offset, now = new Date()) {
     const tbody = document.getElementById("calendar-body-" + offset);
     tbody.innerHTML = "";
 
-    let dateNum = 1;
-
-    for (let week = 0; week < 6; week++) {
+    // 6週目の日付は5行目の同じ曜日に併記する。
+    for (let week = 0; week < 5; week++) {
         const tr = document.createElement("tr");
-
         for (let day = 0; day < 7; day++) {
             const td = document.createElement("td");
-
-            if (week === 0 && day < firstDay) {
-                td.textContent = "";
-            } else if (dateNum > lastDate) {
-                td.textContent = "";
-            } else {
-                td.textContent = dateNum;
-
-                const monthStr = String(month + 1).padStart(2, "0");
-                const dayStr = String(dateNum).padStart(2, "0");
-                const dateKey = `${year}-${monthStr}-${dayStr}`;
-
-                if (holidays[dateKey]) td.classList.add("holiday");
-                if (day === 0) td.classList.add("sun");
-                if (day === 6) td.classList.add("sat");
-                if (year === now.getFullYear() && month === now.getMonth() && dateNum === now.getDate()) td.classList.add("today");
-
-                dateNum++;
-            }
-
+            const dateNum = week * 7 + day - firstDay + 1;
+            const dates = [dateNum];
+            if (week === 4 && dateNum + 7 <= lastDate) dates.push(dateNum + 7);
+            if (dates.length > 1) td.classList.add("shared-day");
+            if (day === 0) td.classList.add("sun");
+            if (day === 6) td.classList.add("sat");
+            dates.filter(n => n >= 1 && n <= lastDate).forEach((n, i) => {
+                if (i) {
+                    const separator = document.createElement("span");
+                    separator.className = "day-separator";
+                    separator.textContent = "/";
+                    td.appendChild(separator);
+                }
+                const label = document.createElement("span");
+                label.classList.add("day-number");
+                label.textContent = n;
+                const key = `${year}-${String(month + 1).padStart(2, "0")}-${String(n).padStart(2, "0")}`;
+                if (holidays[key]) label.classList.add("holiday");
+                if (year === now.getFullYear() && month === now.getMonth() && n === now.getDate()) label.classList.add("today");
+                td.appendChild(label);
+            });
             tr.appendChild(td);
         }
-
         tbody.appendChild(tr);
-
-
     }
 }
 
@@ -275,10 +279,25 @@ setInterval(() => {
 setInterval(loadWeather, 600000);
 setInterval(loadTopInfo, 300000);
 
-// 定期フルリロード
+// 全画面表示は、ブラウザが対応している場合にタップで開始する。
+const fullscreenButton = document.getElementById("fullscreen-button");
+const requestFullscreen = document.documentElement.requestFullscreen || document.documentElement.webkitRequestFullscreen;
+if (!requestFullscreen) {
+    fullscreenButton.hidden = true;
+} else {
+    fullscreenButton.addEventListener("click", async () => {
+        try {
+            await requestFullscreen.call(document.documentElement);
+        } catch (error) {
+            alert("このブラウザでは全画面表示を開始できませんでした。SilkのURL欄はページ側から直接非表示にできません。");
+        }
+    });
+}
+
+// 全画面中は再読み込みによる解除を避ける。情報は個別に更新される。
 const FULL_RELOAD_MS = 5 * 60 * 1000;
-setTimeout(() => {
-    location.reload();
+setInterval(() => {
+    if (!document.fullscreenElement && !document.webkitFullscreenElement) location.reload();
 }, FULL_RELOAD_MS);
 </script>
 
